@@ -38,7 +38,7 @@ public class JwtUtil {
                     .getPayload()
                     .getSubject();
         } catch (Exception e) {
-            return null; // Graceful failure for bad tokens.
+            return null;
         }
     }
 }

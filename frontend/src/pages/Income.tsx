@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useIncome, useCreateIncome, useDeleteIncome } from "@/hooks/useIncome";
 import { IncomeSource } from "@/lib/api";
-import { Trash2, Plus, TrendingUp, Filter } from "lucide-react";
+import { Trash2, Plus, TrendingUp, Filter, ArrowUpDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 
 const INCOME_SOURCE_OPTIONS: { value: IncomeSource; label: string }[] = [
   { value: "SALARY", label: "Salary" },
@@ -40,10 +41,21 @@ export default function Income() {
   const [source, setSource] = useState<IncomeSource | "">("");
   const [incomeDate, setIncomeDate] = useState(new Date().toISOString().split("T")[0]);
   const [filterSource, setFilterSource] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("date-desc");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description || !amount || !source) return;
+
+    // 🛑 Future Date Validation
+    const selectedDate = new Date(incomeDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate > today) {
+      toast.error("Cannot add future income");
+      return;
+    }
 
     await createIncome.mutateAsync({
       description,
@@ -58,177 +70,156 @@ export default function Income() {
     setIncomeDate(new Date().toISOString().split("T")[0]);
   };
 
-  const filteredIncome = income?.filter((inc) => 
-    filterSource === "all" || inc.source === filterSource
-  ) || [];
+  const filteredIncome = (income || [])
+      .filter((inc) => filterSource === "all" || inc.source === filterSource)
+      .sort((a, b) => {
+        if (sortBy === "date-desc") return new Date(b.incomeDate).getTime() - new Date(a.incomeDate).getTime();
+        if (sortBy === "date-asc") return new Date(a.incomeDate).getTime() - new Date(b.incomeDate).getTime();
+        if (sortBy === "amount-desc") return b.amount - a.amount;
+        if (sortBy === "amount-asc") return a.amount - b.amount;
+        return 0;
+      });
 
   const totalFiltered = filteredIncome.reduce((sum, inc) => sum + inc.amount, 0);
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Income</h1>
-          <p className="text-muted-foreground">Manage your income sources</p>
-        </div>
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Income</h1>
+            <p className="text-muted-foreground">Manage your income sources</p>
+          </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Add Income Form */}
-          <Card className="lg:col-span-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Add Income
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    placeholder="e.g., Monthly salary"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    required
-                  />
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-1">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plus className="h-5 w-5" />
+                  Add Income
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Input id="description" placeholder="e.g., Monthly salary" value={description} onChange={(e) => setDescription(e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount</Label>
+                    <Input id="amount" type="number" step="0.01" min="0" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="source">Source</Label>
+                    <Select value={source} onValueChange={(val) => setSource(val as IncomeSource)}>
+                      <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                      <SelectContent>
+                        {INCOME_SOURCE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="date">Date</Label>
+                    <Input
+                        id="date"
+                        type="date"
+                        value={incomeDate}
+                        onChange={(e) => setIncomeDate(e.target.value)}
+                        max={new Date().toISOString().split("T")[0]} // UI-level restriction
+                        required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={createIncome.isPending}>
+                    {createIncome.isPending ? "Adding..." : "Add Income"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-success" />
+                  Income History
+                </CardTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="w-[140px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date-desc">Newest First</SelectItem>
+                        <SelectItem value="date-asc">Oldest First</SelectItem>
+                        <SelectItem value="amount-desc">Highest Amount</SelectItem>
+                        <SelectItem value="amount-asc">Lowest Amount</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Select value={filterSource} onValueChange={setFilterSource}>
+                      <SelectTrigger className="w-[140px]"><SelectValue placeholder="All Sources" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Sources</SelectItem>
+                        {INCOME_SOURCE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="source">Source</Label>
-                  <Select value={source} onValueChange={(val) => setSource(val as IncomeSource)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select source" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INCOME_SOURCE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={incomeDate}
-                    onChange={(e) => setIncomeDate(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <Button type="submit" className="w-full" disabled={createIncome.isPending}>
-                  {createIncome.isPending ? "Adding..." : "Add Income"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Income List */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-success" />
-                Income History
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={filterSource} onValueChange={setFilterSource}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sources</SelectItem>
-                    {INCOME_SOURCE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : filteredIncome.length > 0 ? (
-                <>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Source</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredIncome.map((inc) => (
-                          <TableRow key={inc.id}>
-                            <TableCell className="font-medium">{inc.description}</TableCell>
-                            <TableCell>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                    <div className="space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+                ) : filteredIncome.length > 0 ? (
+                    <>
+                      <div className="rounded-md border overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Description</TableHead>
+                              <TableHead>Source</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead className="text-right">Amount</TableHead>
+                              <TableHead className="w-[50px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredIncome.map((inc) => (
+                                <TableRow key={inc.id}>
+                                  <TableCell className="font-medium">{inc.description}</TableCell>
+                                  <TableCell>
                               <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-success/10 text-success">
                                 {INCOME_SOURCE_LABELS[inc.source]}
                               </span>
-                            </TableCell>
-                            <TableCell>{new Date(inc.incomeDate).toLocaleDateString()}</TableCell>
-                            <TableCell className="text-right font-semibold text-success">
-                              +{formatCurrency(inc.amount)}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => deleteIncome.mutate(inc.id)}
-                                disabled={deleteIncome.isPending}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <div className="text-sm text-muted-foreground">
-                      Total: <span className="font-semibold text-success">{formatCurrency(totalFiltered)}</span>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="h-32 flex items-center justify-center text-muted-foreground">
-                  No income entries yet
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                                  </TableCell>
+                                  <TableCell>{new Date(inc.incomeDate).toLocaleDateString()}</TableCell>
+                                  <TableCell className="text-right font-semibold text-success">+{formatCurrency(inc.amount)}</TableCell>
+                                  <TableCell>
+                                    <Button variant="ghost" size="icon" onClick={() => deleteIncome.mutate(inc.id)} disabled={deleteIncome.isPending}>
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <div className="text-sm text-muted-foreground">
+                          Total: <span className="font-semibold text-success">{formatCurrency(totalFiltered)}</span>
+                        </div>
+                      </div>
+                    </>
+                ) : (
+                    <div className="h-32 flex items-center justify-center text-muted-foreground">No income entries yet</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
-    </DashboardLayout>
+      </DashboardLayout>
   );
 }

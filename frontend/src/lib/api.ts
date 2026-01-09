@@ -69,8 +69,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     ...(options.headers || {}),
   };
 
-  // 🔐 Only attach the Bearer token if it exists and we aren't at an auth endpoint.
-  // This prevents the Backend Filter from failing on stale signatures during login.
+  // Only attach the Bearer token if it exists and we aren't at an auth endpoint.
   if (token && !isAuthEndpoint) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
@@ -80,11 +79,10 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     headers,
   });
 
-  // 🚫 Handle unauthorized access for protected resources.
+  // Handle unauthorized access for protected resources.
   if ((response.status === 401 || response.status === 403) && !isAuthEndpoint) {
     removeToken();
     removeEmail();
-    // We throw a specific error so the UI/AuthContext can redirect to /auth.
     throw new Error("UNAUTHORIZED");
   }
 
@@ -129,6 +127,22 @@ export const authApi = {
     setEmail(res.email);
     return res;
   },
+
+  /**
+   * Captures OAuth2 tokens from URL and saves them to local storage.
+   */
+  handleOAuthCallback: () => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const email = params.get("email");
+
+    if (token && email) {
+      setToken(token);
+      setEmail(email);
+      return true;
+    }
+    return false;
+  }
 };
 
 export const expenseApi = {
@@ -164,8 +178,6 @@ export const incomeApi = {
 };
 
 export const pnlApi = {
-  /** * Retrieves the PnL summary (Income, Expense, Net)
-   * specifically for the logged-in user.
-   */
+  /** Retrieves the PnL summary for the logged-in user. */
   get: () => apiRequest<PnlResponse>("/pnl"),
 };
