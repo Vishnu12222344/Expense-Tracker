@@ -2,8 +2,10 @@ package com.ExpenseTracker.Controller;
 
 import com.ExpenseTracker.Model.Income;
 import com.ExpenseTracker.Service.IncomeService;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -19,16 +21,27 @@ public class IncomeController {
 
     @PostMapping
     public Income add(@RequestBody Income i) {
-        // Identifies the user from their JWT token
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return service.addIncome(i, email);
     }
 
     @GetMapping
-    public List<Income> all() {
-        // Identifies the user from their JWT token
+    public List<Income> getAll(
+            @RequestParam(required = false, defaultValue = "all") String source,
+            @RequestParam(defaultValue = "incomeDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return service.getAllForUser(email);
+
+        // Create the Sort object required by IncomeService
+        Sort sort = direction.equalsIgnoreCase("desc") ?
+                Sort.by(sortBy).descending() :
+                Sort.by(sortBy).ascending();
+
+        if (source.equalsIgnoreCase("all")) {
+            return service.getAllForUser(email, sort);
+        }
+        return service.getBySourceForUser(email, source, sort);
     }
 
     @DeleteMapping("/{id}")

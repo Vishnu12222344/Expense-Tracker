@@ -10,7 +10,7 @@ import { useExpenses, useCreateExpense, useDeleteExpense } from "@/hooks/useExpe
 import { ExpenseCategory } from "@/lib/api";
 import { Trash2, Plus, TrendingDown, Filter, ArrowUpDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner"; // Assuming you use sonner for notifications
+import { toast } from "sonner";
 
 const EXPENSE_CATEGORY_OPTIONS: { value: ExpenseCategory; label: string }[] = [
   { value: "PERSONAL", label: "Personal" },
@@ -56,7 +56,7 @@ export default function Expenses() {
     // 🛑 Future Date Validation
     const selectedDate = new Date(expenseDate);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate date comparison
+    today.setHours(0, 0, 0, 0);
 
     if (selectedDate > today) {
       toast.error("Cannot add future expenses");
@@ -132,7 +132,7 @@ export default function Expenses() {
                         type="date"
                         value={expenseDate}
                         onChange={(e) => setExpenseDate(e.target.value)}
-                        max={new Date().toISOString().split("T")[0]} // UI-level restriction
+                        max={new Date().toISOString().split("T")[0]}
                         required
                     />
                   </div>

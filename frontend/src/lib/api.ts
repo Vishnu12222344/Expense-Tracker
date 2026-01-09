@@ -36,8 +36,7 @@ export interface Income {
 }
 
 /**
- * Matches the updated Backend PnlResponse DTO
- * that provides total income, total expense, and net pnl.
+ * Matches the Backend PnlResponse DTO
  */
 export interface PnlResponse {
   totalIncome: number;
@@ -55,11 +54,6 @@ export const setEmail = (email: string) => localStorage.setItem("email", email);
 export const removeEmail = () => localStorage.removeItem("email");
 
 /* ===================== CORE API HELPER ===================== */
-/**
- * Generic API request handler.
- * - Injects Authorization headers for protected routes.
- * - Automatically clears storage and signals redirect on 401/403 errors.
- */
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const isAuthEndpoint = endpoint.startsWith("/auth");
@@ -69,7 +63,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     ...(options.headers || {}),
   };
 
-  // Only attach the Bearer token if it exists and we aren't at an auth endpoint.
+  // Attach token if it exists and we aren't at an auth endpoint.
   if (token && !isAuthEndpoint) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
@@ -79,7 +73,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     headers,
   });
 
-  // Handle unauthorized access for protected resources.
+  // Handle unauthorized access.
   if ((response.status === 401 || response.status === 403) && !isAuthEndpoint) {
     removeToken();
     removeEmail();
@@ -98,9 +92,6 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 /* ===================== API EXPORTS ===================== */
 
 export const authApi = {
-  /**
-   * Clears old session data and performs login.
-   */
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     removeToken();
     removeEmail();
@@ -113,9 +104,6 @@ export const authApi = {
     return res;
   },
 
-  /**
-   * Clears old session data and performs signup.
-   */
   signup: async (data: SignupRequest): Promise<AuthResponse> => {
     removeToken();
     removeEmail();
@@ -128,9 +116,6 @@ export const authApi = {
     return res;
   },
 
-  /**
-   * Captures OAuth2 tokens from URL and saves them to local storage.
-   */
   handleOAuthCallback: () => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
@@ -146,38 +131,27 @@ export const authApi = {
 };
 
 export const expenseApi = {
-  /** Retrieves all expenses for the authenticated user. */
   getAll: () => apiRequest<Expense[]>("/expenses"),
-
-  /** Adds a new expense entry. */
   create: (data: any) => apiRequest<Expense>("/expenses", {
     method: "POST",
     body: JSON.stringify(data)
   }),
-
-  /** Deletes a specific expense by ID. */
   delete: (id: number) => apiRequest<void>(`/expenses/${id}`, {
     method: "DELETE"
   }),
 };
 
 export const incomeApi = {
-  /** Retrieves all income entries for the authenticated user. */
   getAll: () => apiRequest<Income[]>("/income"),
-
-  /** Adds a new income entry. */
   create: (data: any) => apiRequest<Income>("/income", {
     method: "POST",
     body: JSON.stringify(data)
   }),
-
-  /** Deletes a specific income entry by ID. */
   delete: (id: number) => apiRequest<void>(`/income/${id}`, {
     method: "DELETE"
   }),
 };
 
 export const pnlApi = {
-  /** Retrieves the PnL summary for the logged-in user. */
   get: () => apiRequest<PnlResponse>("/pnl"),
 };

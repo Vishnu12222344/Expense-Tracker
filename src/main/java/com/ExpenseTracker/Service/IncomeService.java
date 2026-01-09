@@ -4,12 +4,13 @@ import com.ExpenseTracker.Model.Income;
 import com.ExpenseTracker.Model.User;
 import com.ExpenseTracker.Repository.IncomeRepository;
 import com.ExpenseTracker.Repository.UserRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
 public class IncomeService {
-
     private final IncomeRepository repo;
     private final UserRepository userRepo;
 
@@ -18,24 +19,34 @@ public class IncomeService {
         this.userRepo = userRepo;
     }
 
-    // Links the incoming income data to the logged-in user
     public Income addIncome(Income income, String email) {
+        // Fix: Safely parse the date by ensuring it is treated as a String
+        LocalDate selectedDate = LocalDate.parse(String.valueOf(income.getIncomeDate()));
+        LocalDate today = LocalDate.now();
+
+        if (selectedDate.isAfter(today)) {
+            throw new RuntimeException("Cannot add future income");
+        }
+
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        income.setUser(user); // Ownership link
+
+        income.setUser(user);
         return repo.save(income);
     }
 
-    // New Method: Fetches ONLY income entries for this specific user
-    public List<Income> getAllForUser(String email) {
-        return repo.findByUserEmail(email);
+    public List<Income> getAllForUser(String email, Sort sort) {
+        return repo.findByUserEmail(email, sort);
+    }
+
+    public List<Income> getBySourceForUser(String email, String source, Sort sort) {
+        return repo.findByUserEmailAndSource(email, source, sort);
     }
 
     public void deleteIncome(Long id, String email) {
         Income income = repo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Income not found"));
 
-        // Security check: Verify owner before deleting
         if (!income.getUser().getEmail().equals(email)) {
             throw new RuntimeException("Unauthorized deletion attempt");
         }

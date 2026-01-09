@@ -126,7 +126,7 @@ export default function Income() {
                         type="date"
                         value={incomeDate}
                         onChange={(e) => setIncomeDate(e.target.value)}
-                        max={new Date().toISOString().split("T")[0]} // UI-level restriction
+                        max={new Date().toISOString().split("T")[0]}
                         required
                     />
                   </div>
