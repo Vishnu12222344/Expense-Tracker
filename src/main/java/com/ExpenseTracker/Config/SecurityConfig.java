@@ -1,7 +1,7 @@
 package com.ExpenseTracker.Config;
 
 import com.ExpenseTracker.Security.JwtFilter;
-import com.ExpenseTracker.Security.CustomOAuth2UserService;
+import com.ExpenseTracker.Service.CustomOAuth2UserService;
 import com.ExpenseTracker.Security.OAuth2SuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
