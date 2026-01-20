@@ -1,0 +1,11 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane # The Master Node
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8080 # Backend Port
+      - containerPort: 30081
+        hostPort: 8081 # Frontend Port
+  - role: worker # Worker Node 1
+  - role: worker # Worker Node 2
